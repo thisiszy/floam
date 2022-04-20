@@ -46,7 +46,7 @@ public:
 	// 定义流形上的点x在切空间上移动delta再重投影到流形上得到x_plus_delta的操作
     virtual bool Plus(const double* x, const double* delta, double* x_plus_delta) const;
     virtual bool ComputeJacobian(const double* x, double* jacobian) const;
-	// x的ambient space维度
+	// x的维度
     virtual int GlobalSize() const { return 7; }
 	// 目标空间delta的维度
     virtual int LocalSize() const { return 6; }

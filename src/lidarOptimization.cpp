@@ -10,6 +10,15 @@ EdgeAnalyticCostFunction::EdgeAnalyticCostFunction(Eigen::Vector3d curr_point_, 
 
 }
 
+/* parameters格式=[x y z w tx ty tz]
+对应四元数
+q = xi + yj + zk + w
+平移矩阵
+t = 
+| tx|
+| ty|
+| tz|
+*/
 bool EdgeAnalyticCostFunction::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const
 {
     // 本次优化前的旋转矩阵
@@ -30,6 +39,7 @@ bool EdgeAnalyticCostFunction::Evaluate(double const *const *parameters, double 
     {
         if(jacobians[0] != NULL)
         {
+            // Jacobian计算的是loss对SE3的参数的偏导
             Eigen::Matrix3d skew_lp = skew(lp);
             Eigen::Matrix<double, 3, 6> dp_by_se3;
             dp_by_se3.block<3,3>(0,0) = -skew_lp;
@@ -81,14 +91,15 @@ bool SurfNormAnalyticCostFunction::Evaluate(double const *const *parameters, dou
 
 }   
 
-// 输入：当前点x（是四元数），增量（是se3），变换结果x_plus_delta（四元数）
+// 输入：当前点x（是四元数），增量（是se3），变换结果x_plus_delta（是四元数）
+// 实际上是将四元数投射到se3空间上和delta相加，再重新投射回四元数
 bool PoseSE3Parameterization::Plus(const double *x, const double *delta, double *x_plus_delta) const
 {
     Eigen::Map<const Eigen::Vector3d> trans(x + 4);
 
     Eigen::Quaterniond delta_q;
     Eigen::Vector3d delta_t;
-    // 将delta分解为q和t两个变换，delta是se3矩阵，
+    // 将delta分解为q和t两个变换，delta是se3的参数，q用四元数表示旋转，t是平移向量
     getTransformFromSe3(Eigen::Map<const Eigen::Matrix<double,6,1>>(delta), delta_q, delta_t);
     // 将x变换为四元数
     Eigen::Map<const Eigen::Quaterniond> quater(x);
@@ -103,6 +114,7 @@ bool PoseSE3Parameterization::Plus(const double *x, const double *delta, double 
     return true;
 }
 
+// 变换矩阵空间对se3空间的Jacobian，输入7维（变换矩阵的参数，四元数4个+平移3个），输出3维（se3六个参数）
 bool PoseSE3Parameterization::ComputeJacobian(const double *x, double *jacobian) const
 {
     Eigen::Map<Eigen::Matrix<double, 7, 6, Eigen::RowMajor>> j(jacobian);
@@ -112,7 +124,7 @@ bool PoseSE3Parameterization::ComputeJacobian(const double *x, double *jacobian)
     return true;
 }
 
-// 将se3转换为变换矩阵q和t
+// 将se3转换为变换四元数q和平移矩阵t
 void getTransformFromSe3(const Eigen::Matrix<double,6,1>& se3, Eigen::Quaterniond& q, Eigen::Vector3d& t){
     Eigen::Vector3d omega(se3.data());
     Eigen::Vector3d upsilon(se3.data()+3);
